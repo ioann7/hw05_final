@@ -7,6 +7,7 @@ from django.contrib.auth import get_user_model
 from django import forms
 from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.cache import cache
 
 from posts.models import Group, Post, Comment
 
@@ -17,6 +18,7 @@ User = get_user_model()
 
 class PostPagesTests(TestCase):
     def setUp(self):
+        cache.clear()
         self.user = User.objects.create_user(username='PostPagesTests')
         self.group = Group.objects.create(
             title='test group',
@@ -57,6 +59,11 @@ class PostPagesTests(TestCase):
             kwargs={'post_id': self.post.id}
         )
         self.POST_CREATE_URL = reverse('posts:post_create')
+    
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def test_post_not_in_unrelated_group(self):
         """Пост не попадает в группу к которой не принадлежит."""
@@ -198,6 +205,25 @@ class PostPagesTests(TestCase):
         )
         response = self.authorized_client.get(self.POST_DETAIL_URL)
         self.assertEqual(response.context['comments'][0], new_comment)
+    
+    def test_cached_index_page(self):
+        post_text = 'cached_index_page_post'
+        post = Post.objects.create(
+            text=post_text,
+            author=self.user
+        )
+
+        response = self.client.get(reverse('posts:index'))
+        self.assertIn(post_text, str(response.content))
+
+        post.delete()
+
+        response = self.client.get(reverse('posts:index'))
+        self.assertIn(post_text, str(response.content))
+
+        cache.clear()
+        response = self.client.get(reverse('posts:index'))
+        self.assertNotIn(post_text, str(response.content))
 
 
 class PaginatorViewsTest(TestCase):
@@ -227,8 +253,14 @@ class PaginatorViewsTest(TestCase):
             'posts:profile',
             kwargs={'username': cls.user.username}
         )
+    
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
+        cache.clear()
         self.authorized_client = Client()
         self.authorized_client.force_login(PaginatorViewsTest.user)
 
@@ -302,6 +334,7 @@ class PostImageViewsTest(TestCase):
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
 
     def setUp(self):
+        cache.clear()
         self.authorized_client = Client()
         self.authorized_client.force_login(self.user)
 

@@ -2,6 +2,7 @@ from http import HTTPStatus
 
 from django.test import TestCase, Client
 from django.contrib.auth import get_user_model
+from django.core.cache import cache
 
 from posts.models import Group, Post
 
@@ -34,6 +35,7 @@ class PostURLTests(TestCase):
         cls.CREATE_URL = '/create/'
 
     def setUp(self):
+        cache.clear()
         self.guest_client = Client()
         self.authorized_client = Client()
         self.authorized_client.force_login(PostURLTests.user)
