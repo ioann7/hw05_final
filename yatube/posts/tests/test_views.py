@@ -207,6 +207,10 @@ class PostPagesTests(TestCase):
         self.assertEqual(response.context['comments'][0], new_comment)
     
     def test_cached_index_page(self):
+        """
+        При удалении записи из базы, она остаётся в response.content
+        главной страницы до тех пор, пока кэш не будет очищен принудительно.
+        """
         post_text = 'cached_index_page_post'
         post = Post.objects.create(
             text=post_text,
