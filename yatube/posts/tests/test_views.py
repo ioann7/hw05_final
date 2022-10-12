@@ -9,7 +9,7 @@ from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.core.cache import cache
 
-from posts.models import Group, Post, Comment
+from posts.models import Group, Post, Comment, Follow
 
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
@@ -59,7 +59,7 @@ class PostPagesTests(TestCase):
             kwargs={'post_id': self.post.id}
         )
         self.POST_CREATE_URL = reverse('posts:post_create')
-    
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
@@ -205,7 +205,7 @@ class PostPagesTests(TestCase):
         )
         response = self.authorized_client.get(self.POST_DETAIL_URL)
         self.assertEqual(response.context['comments'][0], new_comment)
-    
+
     def test_cached_index_page(self):
         """
         При удалении записи из базы, она остаётся в response.content
@@ -257,7 +257,7 @@ class PaginatorViewsTest(TestCase):
             'posts:profile',
             kwargs={'username': cls.user.username}
         )
-    
+
     @classmethod
     def tearDownClass(cls):
         super().tearDownClass()
@@ -368,3 +368,67 @@ class PostImageViewsTest(TestCase):
                 page_obj = response.context.get('page_obj', [None])
                 post = page_obj[0] or response.context.get('post')
                 self.assertIsNotNone(post.image)
+
+
+class FollowViewsTest(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(
+            username='follow_views_test_user1')
+        self.user2 = User.objects.create_user(
+            username='follow_views_test_user2')
+        self.user3 = User.objects.create_user(
+            username='follow_views_test_user3')
+        self.guest_client = Client()
+        self.authorized_client = Client()
+        self.authorized_client.force_login(self.user1)
+        self.another_authorized_client = Client()
+        self.another_authorized_client.force_login(self.user3)
+
+    @classmethod
+    def tearDownClass(cls):
+        super().tearDownClass()
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+
+    def test_authorized_user_can_follow_and_unfollow(self):
+        """Авторизованный пользователь может подписываться и отписываться."""
+        follow_url = reverse(
+            'posts:profile_follow',
+            kwargs={'username': self.user2.username}
+        )
+        unfollow_url = reverse(
+            'posts:profile_unfollow',
+            kwargs={'username': self.user2.username}
+        )
+        follow_query = Follow.objects.filter(
+            user=self.user1,
+            author=self.user2
+        )
+
+        # test follow
+        self.authorized_client.get(follow_url)
+        self.assertTrue(follow_query.exists())
+
+        # test unfollow
+        self.authorized_client.get(unfollow_url)
+        self.assertFalse(follow_query.exists())
+
+    def test_new_posts_displayed_to_followers(self):
+        """
+        Новый пост отображается у подписчиков
+        и не отображается у не подписчиков.
+        """
+        Follow.objects.create(
+            user=self.user1,
+            author=self.user2
+        )
+        post = Post.objects.create(
+            text='test post',
+            author=self.user2
+        )
+        url = reverse('posts:follow_index')
+
+        response1 = self.authorized_client.get(url)
+        response2 = self.another_authorized_client.get(url)
+
+        self.assertIn(post, response1.context['page_obj'])
+        self.assertNotIn(post, response2.context['page_obj'])

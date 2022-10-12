@@ -1,8 +1,9 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.cache import cache_page
+from django.core.exceptions import PermissionDenied
 
-from .models import Post, Group, User
+from .models import Post, Group, User, Follow
 from .forms import CommentForm, PostForm
 from .utils import get_posts_page_obj
 
@@ -13,13 +14,29 @@ def index(request):
     page_obj = get_posts_page_obj(request, posts)
     context = {
         'page_obj': page_obj,
+        'index': True,
+    }
+    return render(request, 'posts/index.html', context)
+
+
+@login_required
+def follow_index(request):
+    followers = request.user.follower
+    followers = (follow_obj.author for follow_obj in followers.all())
+    posts = Post.objects.filter(
+        author__in=followers
+    ).select_related('author', 'group')
+    page_obj = get_posts_page_obj(request, posts)
+    context = {
+        'page_obj': page_obj,
+        'follow': True,
     }
     return render(request, 'posts/index.html', context)
 
 
 def group_posts(request, slug):
     group = get_object_or_404(Group, slug=slug)
-    posts = group.posts.all()
+    posts = group.posts.select_related('author').all()
     page_obj = get_posts_page_obj(request, posts)
     context = {
         'group': group,
@@ -30,14 +47,47 @@ def group_posts(request, slug):
 
 def profile(request, username):
     author = User.objects.get(username=username)
-    posts = author.posts.all()
+    if request.user.is_authenticated:
+        is_following = Follow.objects.filter(
+            user=request.user,
+            author=author
+        ).exists()
+    else:
+        is_following = False
+    posts = author.posts.select_related('group').all()
     page_obj = get_posts_page_obj(request, posts)
     context = {
         'author': author,
         'posts_count': posts.count(),
         'page_obj': page_obj,
+        'following': is_following,
     }
     return render(request, 'posts/profile.html', context)
+
+
+@login_required
+def profile_follow(request, username):
+    author = User.objects.get(username=username)
+    is_follow = Follow.objects.filter(
+        user=request.user,
+        author=author
+    ).exists()
+    if author == request.user or is_follow:
+        raise PermissionDenied()
+    Follow.objects.create(
+        user=request.user,
+        author=author
+    )
+    return redirect('posts:profile', username)
+
+
+@login_required
+def profile_unfollow(request, username):
+    follow = get_object_or_404(
+        Follow, user=request.user, author__username=username
+    )
+    follow.delete()
+    return redirect('posts:profile', username)
 
 
 def post_detail(request, post_id):
