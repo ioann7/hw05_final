@@ -34,8 +34,8 @@ class PostURLTests(TestCase):
         cls.PROFILE_URL = f'/profile/{cls.user.username}/'
         cls.CREATE_URL = '/create/'
         cls.FOLLOW_INDEX_URL = '/follow/'
-        cls.PROFILE_FOLLOW_URL = f'profile/{cls.user.username}/follow'
-        cls.PROFILE_UNFOLLOW_URL = f'profile/{cls.user.username}/unfollow'
+        cls.PROFILE_FOLLOW_URL = f'/profile/{cls.user.username}/follow/'
+        cls.PROFILE_UNFOLLOW_URL = f'/profile/{cls.user.username}/unfollow/'
         cls.ADD_COMMENT_URL = f'/posts/{cls.post.id}/comment/'
 
     def setUp(self):
