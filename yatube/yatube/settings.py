@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     'posts',
     'users',
     'core',
+
     'sorl.thumbnail',
 ]
 
