@@ -33,6 +33,10 @@ class PostURLTests(TestCase):
         cls.GROUP_URL = f'/group/{cls.group.slug}/'
         cls.PROFILE_URL = f'/profile/{cls.user.username}/'
         cls.CREATE_URL = '/create/'
+        cls.FOLLOW_INDEX_URL = '/follow/'
+        cls.PROFILE_FOLLOW_URL = f'profile/{cls.user.username}/follow'
+        cls.PROFILE_UNFOLLOW_URL = f'profile/{cls.user.username}/unfollow'
+        cls.ADD_COMMENT_URL = f'/posts/{cls.post.id}/comment/'
 
     def setUp(self):
         cache.clear()
@@ -56,44 +60,34 @@ class PostURLTests(TestCase):
                 response = self.guest_client.get(url)
                 self.assertEqual(response.status_code, HTTPStatus.OK)
 
-    def test_post_edit_url_exists_at_desired_location(self):
-        """
-        Страница /posts/<post_id>/edit доступна
-        для редактирования владельцу поста.
-        """
-        response = self.authorized_client.get(self.POST_EDIT_URL)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
+    def test_authorized_urls_exists_at_desired_location(self):
+        """Страницы доступные авторизованному пользователю."""
+        urls = (
+            self.POST_EDIT_URL,
+            self.CREATE_URL,
+            self.FOLLOW_INDEX_URL,
+        )
+        for url in urls:
+            with self.subTest(url=url):
+                response = self.authorized_client.get(url)
+                self.assertEqual(response.status_code, HTTPStatus.OK)
 
     def test_post_edit_url_redirect_on_post_detail(self):
         """
-        Страница /posts/<post_id>/edit перенаправляет
+        Страница /posts/<post_id>/edit/ перенаправляет
         пользователя если он не владелец поста.
         """
         response = self.authorized_client_without_posts.get(
             self.POST_EDIT_URL, follow=True)
         self.assertRedirects(response, self.POST_URL)
 
-    def test_post_edit_url_redirect_anonymous_on_login_url(self):
+    def test_add_comment_url_redirect_on_post_detail(self):
         """
-        Страница /posts/<post_id>/edit перенаправляет
-        неавторизованного пользователя на страницу авторизации.
+        Страница /posts/<post_id>/comment/ перенаправляет
+        авторизованного пользователя на /posts/<post_id>/.
         """
-        expected_url = f'/auth/login/?next={self.POST_EDIT_URL}'
-        response = self.guest_client.get(self.POST_EDIT_URL, follow=True)
-        self.assertRedirects(response, expected_url)
-
-    def test_create_url_exists_at_desired_location(self):
-        """Страница /create/ доступна авторизованному пользователю."""
-        response = self.authorized_client.get(self.CREATE_URL)
-        self.assertEqual(response.status_code, HTTPStatus.OK)
-
-    def test_create_url_redirect_anonymous_on_login_url(self):
-        """
-        Страница /create/ перенаправляет неавторизованного
-        пользователя на страницу авторизации.
-        """
-        response = self.guest_client.get(self.CREATE_URL)
-        self.assertRedirects(response, '/auth/login/?next=/create/')
+        response = self.authorized_client.get(self.ADD_COMMENT_URL)
+        self.assertRedirects(response, self.POST_URL)
 
     def test_404_url(self):
         """Страница /unexisting_page/ выдаёт 404 ошибку."""
@@ -109,8 +103,28 @@ class PostURLTests(TestCase):
             self.POST_URL: 'posts/post_detail.html',
             self.POST_EDIT_URL: 'posts/create_post.html',
             self.CREATE_URL: 'posts/create_post.html',
+            self.FOLLOW_INDEX_URL: 'posts/index.html',
         }
         for url, template in url_names_templates.items():
             with self.subTest(url=url):
                 response = self.authorized_client.get(url)
                 self.assertTemplateUsed(response, template)
+
+    def test_login_required_urls_redirect_anonymous_on_login_url(self):
+        """
+        Страница перенаправляет неавторизованного
+        пользователя на страницу авторизации.
+        """
+        url_names = (
+            self.CREATE_URL,
+            self.POST_EDIT_URL,
+            self.FOLLOW_INDEX_URL,
+            self.PROFILE_FOLLOW_URL,
+            self.PROFILE_UNFOLLOW_URL,
+            self.ADD_COMMENT_URL,
+        )
+        for url in url_names:
+            with self.subTest(url=url):
+                expected_url = f'/auth/login/?next={url}'
+                response = self.guest_client.get(url)
+                self.assertRedirects(response, expected_url)

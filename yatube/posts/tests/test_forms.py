@@ -26,8 +26,8 @@ class PostFormTests(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
 
     def setUp(self):
         self.guest_client = Client()
@@ -101,6 +101,7 @@ class PostFormTests(TestCase):
                 text=form_data['text'],
                 author=PostFormTests.user,
                 group=None,
+                image=uploaded
             ).exists()
         )
 

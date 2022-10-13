@@ -62,8 +62,8 @@ class PostPagesTests(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
 
     def test_post_not_in_unrelated_group(self):
         """Пост не попадает в группу к которой не принадлежит."""
@@ -217,17 +217,19 @@ class PostPagesTests(TestCase):
             author=self.user
         )
 
-        response = self.client.get(reverse('posts:index'))
-        self.assertIn(post_text, str(response.content))
-
+        response_before_post_delete = self.client.get(self.INDEX_URL)
         post.delete()
-
-        response = self.client.get(reverse('posts:index'))
-        self.assertIn(post_text, str(response.content))
-
+        response_before_clear_cache = self.client.get(self.INDEX_URL)
         cache.clear()
-        response = self.client.get(reverse('posts:index'))
-        self.assertNotIn(post_text, str(response.content))
+        response_after_clear_cache = self.client.get(self.INDEX_URL)
+
+        self.assertIn(post_text, str(response_before_post_delete.content))
+        self.assertIn(post_text, str(response_before_clear_cache.content))
+        self.assertNotIn(post_text, str(response_after_clear_cache.content))
+        self.assertEqual(response_before_post_delete.content,
+                         response_before_clear_cache.content)
+        self.assertNotEqual(response_before_clear_cache,
+                            response_after_clear_cache)
 
 
 class PaginatorViewsTest(TestCase):
@@ -260,8 +262,8 @@ class PaginatorViewsTest(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
 
     def setUp(self):
         cache.clear()
@@ -334,8 +336,8 @@ class PostImageViewsTest(TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        super().tearDownClass()
         shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
 
     def setUp(self):
         cache.clear()
@@ -384,33 +386,43 @@ class FollowViewsTest(TestCase):
         self.another_authorized_client = Client()
         self.another_authorized_client.force_login(self.user3)
 
-    @classmethod
-    def tearDownClass(cls):
-        super().tearDownClass()
-        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
-
-    def test_authorized_user_can_follow_and_unfollow(self):
-        """Авторизованный пользователь может подписываться и отписываться."""
-        follow_url = reverse(
+        self.FOLLOW_URL = reverse(
             'posts:profile_follow',
             kwargs={'username': self.user2.username}
         )
-        unfollow_url = reverse(
+        self.UNFOLLOW_URL = reverse(
             'posts:profile_unfollow',
             kwargs={'username': self.user2.username}
         )
-        follow_query = Follow.objects.filter(
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(TEMP_MEDIA_ROOT, ignore_errors=True)
+        super().tearDownClass()
+
+    def test_authorized_user_can_follow(self):
+        """Авторизованный пользователь может подписываться."""
+        self.authorized_client.get(self.FOLLOW_URL)
+        self.assertTrue(
+            Follow.objects.filter(
+                user=self.user1,
+                author=self.user2
+            )
+        )
+
+    def test_authorized_user_can_unfollow(self):
+        """Авторизованный пользователь может отписываться."""
+        Follow.objects.create(
             user=self.user1,
             author=self.user2
         )
-
-        # test follow
-        self.authorized_client.get(follow_url)
-        self.assertTrue(follow_query.exists())
-
-        # test unfollow
-        self.authorized_client.get(unfollow_url)
-        self.assertFalse(follow_query.exists())
+        self.authorized_client.get(self.UNFOLLOW_URL)
+        self.assertFalse(
+            Follow.objects.filter(
+                user=self.user1,
+                author=self.user2
+            )
+        )
 
     def test_new_posts_displayed_to_followers(self):
         """
@@ -427,8 +439,8 @@ class FollowViewsTest(TestCase):
         )
         url = reverse('posts:follow_index')
 
-        response1 = self.authorized_client.get(url)
-        response2 = self.another_authorized_client.get(url)
+        response_by_follow_user = self.authorized_client.get(url)
+        response_by_unfollow_user = self.another_authorized_client.get(url)
 
-        self.assertIn(post, response1.context['page_obj'])
-        self.assertNotIn(post, response2.context['page_obj'])
+        self.assertIn(post, response_by_follow_user.context['page_obj'])
+        self.assertNotIn(post, response_by_unfollow_user.context['page_obj'])
