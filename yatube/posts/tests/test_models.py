@@ -1,7 +1,8 @@
 from django.test import TestCase
 from django.contrib.auth import get_user_model
+from django.db.utils import IntegrityError
 
-from posts.models import Post, Group
+from posts.models import Post, Group, Follow
 
 
 User = get_user_model()
@@ -96,3 +97,31 @@ class GroupModelTest(TestCase):
             with self.subTest(value=value):
                 self.assertEqual(
                     group._meta.get_field(value).help_text, expected)
+
+
+class FollowModelTest(TestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(
+            username='follow_model_test_user1')
+        self.user2 = User.objects.create_user(
+            username='follow_model_test_user2')
+
+    def test_unique_follow(self):
+        follows_count = Follow.objects.count()
+        Follow.objects.create(
+            user=self.user1,
+            author=self.user2
+        )
+        self.assertEqual(Follow.objects.count(), follows_count + 1)
+        with self.assertRaises(IntegrityError):
+            Follow.objects.create(
+                user=self.user1,
+                author=self.user2
+            )
+
+    def test_prevent_self_following(self):
+        with self.assertRaises(IntegrityError):
+            Follow.objects.create(
+                user=self.user1,
+                author=self.user1
+            )
