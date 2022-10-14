@@ -44,7 +44,7 @@ def group_posts(request, slug):
 
 
 def profile(request, username):
-    author = User.objects.get(username=username)
+    author = get_object_or_404(User, username=username)
     if request.user.is_authenticated:
         is_following = Follow.objects.filter(
             user=request.user,
@@ -65,7 +65,7 @@ def profile(request, username):
 
 @login_required
 def profile_follow(request, username):
-    author = User.objects.get(username=username)
+    author = get_object_or_404(User, username=username)
     is_follow = Follow.objects.filter(
         user=request.user,
         author=author
@@ -112,7 +112,7 @@ def post_create(request):
         request.POST or None,
         files=request.FILES or None
     )
-    if form.is_valid():
+    if request.method == 'POST' and form.is_valid():
         post_obj = form.save(commit=False)
         post_obj.author = request.user
         post_obj.save()
@@ -150,7 +150,7 @@ def add_comment(request, post_id):
         Post, id=post_id
     )
     form = CommentForm(request.POST or None)
-    if form.is_valid():
+    if request.method == 'POST' and form.is_valid():
         comment = form.save(commit=False)
         comment.author = request.user
         comment.post = post
