@@ -21,10 +21,8 @@ def index(request):
 
 @login_required
 def follow_index(request):
-    followers = request.user.follower
-    followers = (follow_obj.author for follow_obj in followers.all())
     posts = Post.objects.filter(
-        author__in=followers
+        author__following__user=request.user
     ).select_related('author', 'group')
     page_obj = get_posts_page_obj(request, posts)
     context = {
