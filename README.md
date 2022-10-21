@@ -1,3 +1,24 @@
-# hw05_final
+# yatube_project
+## Social network for bloggers
+## Technologies
+Python 3.7
 
-[![CI](https://github.com/yandex-praktikum/hw05_final/actions/workflows/python-app.yml/badge.svg?branch=master)](https://github.com/yandex-praktikum/hw05_final/actions/workflows/python-app.yml)
+Django 2.2.19
+
+## Launch Instruction
+### Bash
+```bash
+python -m venv venv
+```
+```bash
+pip install -r requirements.txt
+```
+```bash
+source venv/scripts/activate
+```
+```bash
+python yatube/manage.py runserver
+```
+
+## Author
+Ioann Chimrov 47 cohort yandex practicum
