@@ -1,9 +1,13 @@
 # yatube_project
+YaTube - социальная сеть для публикации личных дневников. Функционал сайта включает
+создание публикаций, добавление публикаций в группы, подписку на авторов,
+комментирование и модерацию записей. Код покрыт тестами ().
 ## Social network for bloggers
 ## Technologies
 Python 3.7
-
 Django 2.2.19
+SQLite3
+Unittest
 
 ## Launch Instruction
 ### Bash
